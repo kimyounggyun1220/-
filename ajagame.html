@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>아재개그 퀴즈 게임</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .quiz-container {
+      background-color: #fff;
+      border-radius: 10px;
+      display: inline-block;
+      padding: 30px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #444;
+    }
+
+    #question {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+    }
+
+    #result {
+      font-weight: bold;
+      margin-top: 15px;
+    }
+
+    #score {
+      margin-top: 10px;
+    }
+
+    #restartBtn {
+      display: none;
+      margin-top: 20px;
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧓 아재개그 퀴즈 게임</h1>
+  <div class="quiz-container">
+    <div id="question">문제 로딩 중...</div>
+    <input type="text" id="answerInput" placeholder="정답을 입력하세요" />
+    <br />
+    <button id="submitBtn" onclick="submitAnswer()">제출</button>
+    <div id="result"></div>
+    <div id="score"></div>
+    <button id="restartBtn" onclick="startGame()">🔁 다시 시작</button>
+  </div>
+
+  <script>
+    const originalQuizList = [
+      { question: "왕이 넘어지면?", answer: ["킹콩"] },
+      { question: "문어가 일어서지 못하는 이유는?", answer: ["문어지니까"] },
+      { question: "총이 등산을 하면?", answer: ["산탄총"] },
+      { question: "인간이 만든 가장 창의적인 무기는?", answer: ["방패"] },
+      { question: "탈모인들이 개최하는 대회는?", answer: ["공모전"] },
+      { question: "탈모인들이 총을 한 발만 쏘는 이유는?", answer: ["두발이 없어서"] },
+      { question: "소고기가 없는 나라를 부르는 말은?", answer: ["소고기 무국"] },
+      { question: "소고기를 잘못 구우면?", answer: ["미스테이크"] },
+      { question: "길에서 파를 먹는 사람을 조심해야 하는 이유는?", answer: ["스트리트 파이터여서"] },
+      { question: "시력이 좋은 사슴을 부르는 말은?", answer: ["굿아이디어", "굿 아이 디어"] },
+      { question: "김치가 가위바위보에서 바위를 내면 안 되는 이유는?", answer: ["묵은지니까"] },
+      { question: "세상에서 제일 차가운 전쟁은?", answer: ["제일차 세계대전"] },
+      { question: "제빵사가 제일 싫어하는 개그는?", answer: ["빵 터지는 개그"] },
+      { question: "일본인이 레몬을 먹고 하는 말은?", answer: ["와따시노"] },
+      { question: "일반 미꾸라지보다 큰 미꾸라지는?", answer: ["미꾸엑스라지"] },
+      { question: "세상에서 가장 에메한 보석은?", answer: ["에메랄드"] },
+      { question: "사자로 끓은 국은?", answer: ["동물의 왕국"] },
+      { question: "아몬드가 죽으면?", answer: ["다이아몬드"] },
+      { question: "아이가 소리를 지르면?", answer: ["아이스크림"] },
+      { question: "세상에서 가장 쉬운 숫자는?", answer: ["십구만", "190000"] },
+      { question: "소가 산을 오르면?", answer: ["소오름"] },
+      { question: "검이 정색하면?", answer: ["검정색"] }
+    ];
+
+    let quizList = [];
+    let currentIndex = 0;
+    let score = 0;
+
+    const answerInput = document.getElementById("answerInput");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function normalizeText(text) {
+      return text.replace(/\s/g, "").toLowerCase();
+    }
+
+    function getEditDistance(a, b) {
+      a = normalizeText(a);
+      b = normalizeText(b);
+
+      const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
+      for (let j = 1; j <= a.length; j++) {
+        matrix[0][j] = j;
+      }
+
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b[i - 1] === a[j - 1]) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }
+        }
+      }
+
+      return matrix[b.length][a.length];
+    }
+
+    function isCorrectAnswer(userInput, correctAnswers) {
+      for (let answer of correctAnswers) {
+        const distance = getEditDistance(userInput, answer);
+        if (distance <= 1) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function startGame() {
+      quizList = shuffle([...originalQuizList]);
+      currentIndex = 0;
+      score = 0;
+
+      answerInput.disabled = false;
+      submitBtn.disabled = false;
+      document.getElementById("restartBtn").style.display = "none";
+      document.getElementById("result").innerText = "";
+      document.getElementById("score").innerText = "현재 점수: 0점";
+      answerInput.value = "";
+      answerInput.focus();
+
+      showQuestion();
+    }
+
+    function showQuestion() {
+      if (currentIndex >= quizList.length) {
+        document.getElementById("question").innerText = "👏 모든 문제를 풀었습니다!";
+        document.getElementById("result").innerText = `최종 점수: ${score}점`;
+        answerInput.disabled = true;
+        submitBtn.disabled = true;
+        document.getElementById("restartBtn").style.display = "inline-block";
+        return;
+      }
+
+      const quiz = quizList[currentIndex];
+      document.getElementById("question").innerText = "문제: " + quiz.question;
+      answerInput.value = "";
+      answerInput.disabled = false;
+      submitBtn.disabled = false;
+      answerInput.focus();
+    }
+
+    function submitAnswer() {
+      submitBtn.disabled = true;
+      answerInput.disabled = true;
+
+      const userAnswer = answerInput.value;
+      const correctAnswers = quizList[currentIndex].answer;
+
+      if (isCorrectAnswer(userAnswer, correctAnswers)) {
+        score++;
+        document.getElementById("result").innerText = "🎉 정답입니다!";
+        document.getElementById("score").innerText = `현재 점수: ${score}점`;
+        currentIndex++;
+        setTimeout(() => {
+          document.getElementById("result").innerText = "";
+          showQuestion();
+        }, 1000);
+      } else {
+        document.getElementById("result").innerText = `❌ 틀렸습니다! 정답은 "${correctAnswers[0]}"`;
+        document.getElementById("score").innerText = `최종 점수: ${score}점`;
+        document.getElementById("restartBtn").style.display = "inline-block";
+      }
+    }
+
+    answerInput.addEventListener("keydown", function(event) {
+      if (event.key === "Enter" && !submitBtn.disabled) {
+        submitAnswer();
+      }
+    });
+
+    startGame();
+  </script> 
+</body>
+</html>
